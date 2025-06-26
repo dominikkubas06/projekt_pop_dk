@@ -253,6 +253,7 @@ def on_select_listbox(typ):
     except IndexError:
         pass
 
+
 # ------------------ GUI ------------------
 
 root = Tk()
