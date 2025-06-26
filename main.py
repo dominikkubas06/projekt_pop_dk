@@ -1,202 +1,307 @@
 from tkinter import *
-
 import tkintermapview
+import requests
+from bs4 import BeautifulSoup
 
+class ObiektMapy:
+    def __init__(self, nazwa, miejscowosc):
+        self.nazwa = nazwa
+        self.miejscowosc = miejscowosc
+        self.coordinates = self.get_coordinates()
+        self.marker = None
 
-users:list=[]
+    def get_coordinates(self):
+        try:
+            url = f"https://pl.wikipedia.org/wiki/{self.miejscowosc}"
+            response = requests.get(url, timeout=5).text
+            soup = BeautifulSoup(response, "html.parser")
+            latitudes = soup.select(".latitude")
+            longitudes = soup.select(".longitude")
+            if latitudes and longitudes:
+                latitude = float(latitudes[0].text.replace(",", "."))
+                longitude = float(longitudes[0].text.replace(",", "."))
+                return [latitude, longitude]
+            else:
+                raise ValueError("Brak współrzędnych na stronie")
+        except Exception as e:
+            print(f"Błąd pobierania współrzędnych dla {self.miejscowosc}: {e}")
+            return [52.23, 21.0]  # Warszawa jako domyślna
 
-class User:
-    def _init_(self,name,surname,location,post):
-        self.name =name
-        self.surname=surname
-        self.location=location
-        self.post=post
-        self.coordinates=self.get_coordinates()
-        self.marker=map_widget.set_marker(self.coordinates[0],self.coordinates[1])
+class DomDziecka(ObiektMapy):
+    pass
 
-    def get_coordinates(self) -> list:
-        import requests
-        from bs4 import BeautifulSoup
-        url = f"https://pl.wikipedia.org/wiki/{self.location}"
-        response = requests.get(url).text
-        response_html = BeautifulSoup(response, "html.parser")
-        longitude = float(response_html.select(".longitude")[1].text.replace(",", "."))
-        latitude = float(response_html.select(".latitude")[1].text.replace(",", "."))
-        print(longitude)
-        print(latitude)
-        return [latitude, longitude]
+class Pracownik(ObiektMapy):
+    def __init__(self, nazwa, miejscowosc, dom):
+        self.dom = dom
+        super().__init__(nazwa, miejscowosc)
 
-def add_user():
-    zmienna_imie=entry_name.get()
-    zmienna_nazwisko=entry_surname.get()
-    zmienna_miejscowosc=entry_location.get()
-    zmienna_post=entry_posts.get()
-    user= User(name=zmienna_imie, surname=zmienna_nazwisko, location=zmienna_miejscowosc, post=zmienna_post)
-    users.append(user)
+class Dziecko(ObiektMapy):
+    def __init__(self, nazwa, miejscowosc, dom):
+        self.dom = dom
+        super().__init__(nazwa, miejscowosc)
 
-    entry_name.delete(0,END)
-    entry_surname.delete(0,END)
-    entry_location.delete(0,END)
-    entry_posts.delete(0,END)
+domy = []
+pracownicy = []
+dzieci = []
+wszystkie_markery = []
 
-    entry_name.focus()
+def dodaj_dom():
+    nazwa = entry_name.get()
+    miejscowosc = entry_location.get()
+    if nazwa and miejscowosc:
+        dom = DomDziecka(nazwa, miejscowosc)
+        domy.append(dom)
+        listbox_domy.insert(END, dom.nazwa)
+    clear_entries()
 
-    show_users()
+def dodaj_pracownika():
+    nazwa = entry_name.get()
+    miejscowosc = entry_location.get()
+    dom = entry_extra.get()
+    if nazwa and miejscowosc and dom:
+        pracownik = Pracownik(nazwa, miejscowosc, dom)
+        pracownicy.append(pracownik)
+        listbox_pracownicy.insert(END, pracownik.nazwa)
+    clear_entries()
 
+def dodaj_dziecko():
+    nazwa = entry_name.get()
+    miejscowosc = entry_location.get()
+    dom = entry_extra.get()
+    if nazwa and miejscowosc and dom:
+        dziecko = Dziecko(nazwa, miejscowosc, dom)
+        dzieci.append(dziecko)
+        listbox_dzieci.insert(END, dziecko.nazwa)
+    clear_entries()
 
+def edytuj_dom():
+    index = listbox_domy.curselection()
+    if index:
+        dom = domy[index[0]]
+        dom.nazwa = entry_name.get()
+        dom.miejscowosc = entry_location.get()
+        dom.coordinates = dom.get_coordinates()
+        listbox_domy.delete(index)
+        listbox_domy.insert(index, dom.nazwa)
+        clear_entries()
 
-def show_users():
-    listbox_lista_obiketow.delete(0,END)
-    for idx,user in enumerate(users):
-        listbox_lista_obiketow.insert(idx,f'{idx+1}. {user.name} {user.surname}')
+def edytuj_pracownika():
+    index = listbox_pracownicy.curselection()
+    if index:
+        pracownik = pracownicy[index[0]]
+        pracownik.nazwa = entry_name.get()
+        pracownik.miejscowosc = entry_location.get()
+        pracownik.dom = entry_extra.get()
+        pracownik.coordinates = pracownik.get_coordinates()
+        listbox_pracownicy.delete(index)
+        listbox_pracownicy.insert(index, pracownik.nazwa)
+        clear_entries()
 
+def edytuj_dziecko():
+    index = listbox_dzieci.curselection()
+    if index:
+        dziecko = dzieci[index[0]]
+        dziecko.nazwa = entry_name.get()
+        dziecko.miejscowosc = entry_location.get()
+        dziecko.dom = entry_extra.get()
+        dziecko.coordinates = dziecko.get_coordinates()
+        listbox_dzieci.delete(index)
+        listbox_dzieci.insert(index, dziecko.nazwa)
+        clear_entries()
 
-def remove_user():
-    i=listbox_lista_obiketow.index(ACTIVE)
-    users[i].marker.delete()
-    users.pop(i)
-    show_users()
+def usun_dom():
+    index = listbox_domy.curselection()
+    if index:
+        del domy[index[0]]
+        listbox_domy.delete(index)
 
-def edit_user():
-    i=listbox_lista_obiketow.index(ACTIVE)
-    name=users[i].name
-    surname=users[i].surname
-    location=users[i].location
-    post=users[i].post
+def usun_pracownika():
+    index = listbox_pracownicy.curselection()
+    if index:
+        del pracownicy[index[0]]
+        listbox_pracownicy.delete(index)
 
-    entry_name.insert(0,name)
-    entry_surname.insert(0,surname)
-    entry_location.insert(0,location)
-    entry_posts.insert(0,post)
+def usun_dziecko():
+    index = listbox_dzieci.curselection()
+    if index:
+        del dzieci[index[0]]
+        listbox_dzieci.delete(index)
 
-    button_dodaj_obiekt.config(text='zapisz',command=lambda: update_user(i))
+def clear_entries():
+    entry_name.delete(0, END)
+    entry_location.delete(0, END)
+    if entry_extra:
+        entry_extra.delete(0, END)
+    entry_name.focus_set()
 
-def update_user(i):
-    new_name=entry_name.get()
-    new_surname=entry_surname.get()
-    new_location=entry_location.get()
-    new_post=entry_posts.get()
+def usun_wszystkie_markery():
+    global wszystkie_markery
+    for marker in wszystkie_markery:
+        marker.delete()
+    wszystkie_markery = []
 
-    users[i].name=new_name
-    users[i].surname=new_surname
-    users[i].location=new_location
-    users[i].post=new_post
+def pokaz_wszystkie_domy():
+    usun_wszystkie_markery()
+    map_widget.set_zoom(6)
+    for d in domy:
+        d.marker = map_widget.set_marker(d.coordinates[0], d.coordinates[1], text=d.nazwa)
+        wszystkie_markery.append(d.marker)
 
-    users[i].marker.delete()
-    users[i].coordinates=users[i].get_coordinates()
-    users[i].marker=map_widget.set_marker(users[i].coordinates[0],users[i].coordinates[1])
+def pokaz_wszystkich_pracownikow():
+    usun_wszystkie_markery()
+    map_widget.set_zoom(6)
+    lokalizacje = {}
+    for p in pracownicy:
+        key = tuple(p.coordinates)
+        lokalizacje.setdefault(key, []).append(p.nazwa)
+    for coords, imiona in lokalizacje.items():
+        text = "\n".join(imiona)
+        marker = map_widget.set_marker(coords[0], coords[1], text=text)
+        wszystkie_markery.append(marker)
 
+def pokaz_dzieci_domu():
+    usun_wszystkie_markery()
+    nazwa_domu = entry_domu_dziecko.get()
+    if nazwa_domu:
+        lokalizacje = {}
+        for d in dzieci:
+            if d.dom == nazwa_domu:
+                key = tuple(d.coordinates)
+                lokalizacje.setdefault(key, []).append(d.nazwa)
+        for coords, imiona in lokalizacje.items():
+            text = "\n".join(imiona)
+            marker = map_widget.set_marker(coords[0], coords[1], text=text)
+            wszystkie_markery.append(marker)
 
+def pokaz_pracownikow_domu():
+    usun_wszystkie_markery()
+    nazwa_domu = entry_domu_pracownik.get()
+    if nazwa_domu:
+        lokalizacje = {}
+        for p in pracownicy:
+            if p.dom == nazwa_domu:
+                key = tuple(p.coordinates)
+                lokalizacje.setdefault(key, []).append(p.nazwa)
+        for coords, imiona in lokalizacje.items():
+            text = "\n".join(imiona)
+            marker = map_widget.set_marker(coords[0], coords[1], text=text)
+            wszystkie_markery.append(marker)
 
-    entry_name.delete(0,END)
-    entry_surname.delete(0,END)
-    entry_location.delete(0,END)
-    entry_posts.delete(0,END)
-    entry_name.focus()
+def pokaz_formularz(typ):
+    for widget in frame_formularz.winfo_children():
+        widget.destroy()
 
+    Label(frame_formularz, text="Nazwa").grid(row=0, column=0)
+    global entry_name
+    entry_name = Entry(frame_formularz)
+    entry_name.grid(row=0, column=1)
 
-    button_dodaj_obiekt.config(text='Dodaj obiekt',command=add_user)
-    show_users()
+    Label(frame_formularz, text="Miejscowość").grid(row=1, column=0)
+    global entry_location
+    entry_location = Entry(frame_formularz)
+    entry_location.grid(row=1, column=1)
 
+    global entry_extra
+    entry_extra = None
 
-def show_user_details():
-    i=listbox_lista_obiketow.index(ACTIVE)
-    name=users[i].name
-    surname=users[i].surname
-    location=users[i].location
-    post=users[i].post
-    label_szczegoly_name_wartosc.config(text=name)
-    label_szczegoly_surname_wartosc.config(text=surname)
-    label_szczegoly_location_wartosc.config(text=location)
-    label_szczegoly_posts_wartosc.config(text=post)
+    if typ != "dom":
+        Label(frame_formularz, text="Dom dziecka").grid(row=2, column=0)
+        entry_extra = Entry(frame_formularz)
+        entry_extra.grid(row=2, column=1)
 
-    map_widget.set_position(users[i].coordinates[0],users[i].coordinates[1])
-    map_widget.set_zoom(17)
+    if typ == "dom":
+        Button(frame_formularz, text="Dodaj dom", command=dodaj_dom).grid(row=3, column=0)
+        Button(frame_formularz, text="Edytuj dom", command=edytuj_dom).grid(row=3, column=1)
+    elif typ == "pracownik":
+        Button(frame_formularz, text="Dodaj pracownika", command=dodaj_pracownika).grid(row=3, column=0)
+        Button(frame_formularz, text="Edytuj pracownika", command=edytuj_pracownika).grid(row=3, column=1)
+    elif typ == "dziecko":
+        Button(frame_formularz, text="Dodaj dziecko", command=dodaj_dziecko).grid(row=3, column=0)
+        Button(frame_formularz, text="Edytuj dziecko", command=edytuj_dziecko).grid(row=3, column=1)
 
+def wczytaj_dane_formularz(typ, index):
+    if typ == "dom":
+        obiekt = domy[index]
+        pokaz_formularz("dom")
+        entry_name.insert(0, obiekt.nazwa)
+        entry_location.insert(0, obiekt.miejscowosc)
+    elif typ == "pracownik":
+        obiekt = pracownicy[index]
+        pokaz_formularz("pracownik")
+        entry_name.insert(0, obiekt.nazwa)
+        entry_location.insert(0, obiekt.miejscowosc)
+        entry_extra.insert(0, obiekt.dom)
+    elif typ == "dziecko":
+        obiekt = dzieci[index]
+        pokaz_formularz("dziecko")
+        entry_name.insert(0, obiekt.nazwa)
+        entry_location.insert(0, obiekt.miejscowosc)
+        entry_extra.insert(0, obiekt.dom)
 
+def on_select_listbox(typ):
+    try:
+        if typ == "dom":
+            index = listbox_domy.curselection()[0]
+        elif typ == "pracownik":
+            index = listbox_pracownicy.curselection()[0]
+        elif typ == "dziecko":
+            index = listbox_dzieci.curselection()[0]
+        else:
+            return
+        wczytaj_dane_formularz(typ, index)
+    except IndexError:
+        pass
 
-
-
-
-
+# ------------------ GUI ------------------
 
 root = Tk()
-root.geometry("1200x760")
-root.title("Map Book MJ")
+root.geometry("1200x800")
+root.title("Mapa Domów Dziecka")
 
+frame_left = Frame(root)
+frame_left.grid(row=0, column=0, sticky=N)
 
-ramka_lista_obiektow=Frame(root)
-ramka_formularz=Frame(root)
-ramka_szczegoly_obiektow=Frame(root)
-ramka_mapa=Frame(root)
+Button(frame_left, text="Formularz: Dom", command=lambda: pokaz_formularz("dom")).grid(row=0, column=0, columnspan=2)
+Button(frame_left, text="Formularz: Pracownik", command=lambda: pokaz_formularz("pracownik")).grid(row=1, column=0, columnspan=2)
+Button(frame_left, text="Formularz: Dziecko", command=lambda: pokaz_formularz("dziecko")).grid(row=2, column=0, columnspan=2)
 
-ramka_lista_obiektow.grid(row=0, column=0)
-ramka_formularz.grid(row=0, column=1)
-ramka_szczegoly_obiektow.grid(row=1, column=0,columnspan=2)
-ramka_mapa.grid(row=2, column=0, columnspan=2)
+frame_formularz = Frame(frame_left)
+frame_formularz.grid(row=3, column=0, columnspan=2, pady=10)
 
-# ramka_lista_obiektow
-label_lista_obiektow=Label(ramka_lista_obiektow, text="Lista użytkowników")
-label_lista_obiektow.grid(row=0, column=0,columnspan=3)
-listbox_lista_obiketow=Listbox(ramka_lista_obiektow, width=50, height=10)
-listbox_lista_obiketow.grid(row=1, column=0, columnspan=3)
-button_pokaz_szczegoly_obiektu=Button(ramka_lista_obiektow, text='Pokaż szczegóły',command=show_user_details)
-button_pokaz_szczegoly_obiektu.grid(row=2, column=0)
-button_usun_obiekt=Button(ramka_lista_obiektow, text='Usuń obiekt',command=remove_user)
-button_usun_obiekt.grid(row=2, column=1)
-button_edytuj_obiekt=Button(ramka_lista_obiektow, text='Edytuj obiekt', command=edit_user)
-button_edytuj_obiekt.grid(row=2, column=2)
+Button(frame_left, text="Pokaż wszystkie domy", command=pokaz_wszystkie_domy).grid(row=4, column=0, columnspan=2)
+Button(frame_left, text="Pokaż wszystkich pracowników", command=pokaz_wszystkich_pracownikow).grid(row=5, column=0, columnspan=2)
 
-# ramka_formularz
-label_formularz=Label(ramka_formularz, text="Formularz")
-label_formularz.grid(row=0, column=0, columnspan=2)
-label_name=Label(ramka_formularz, text="Imię:")
-label_name.grid(row=1, column=0, sticky=W)
-label_surname=Label(ramka_formularz, text="Nazwisko:")
-label_surname.grid(row=2, column=0,sticky=W)
-label_location=Label(ramka_formularz, text="Miejscowość:")
-label_location.grid(row=3, column=0,sticky=W)
-label_posts=Label(ramka_formularz, text="Postów:")
-label_posts.grid(row=4, column=0,sticky=W)
+Label(frame_left, text="Dom dla dzieci:").grid(row=6, column=0, columnspan=2)
+entry_domu_dziecko = Entry(frame_left)
+entry_domu_dziecko.grid(row=7, column=0, columnspan=2)
+Button(frame_left, text="Pokaż dzieci domu", command=pokaz_dzieci_domu).grid(row=8, column=0, columnspan=2)
 
-entry_name=Entry(ramka_formularz)
-entry_name.grid(row=1, column=1)
-entry_surname=Entry(ramka_formularz)
-entry_surname.grid(row=2, column=1)
-entry_location=Entry(ramka_formularz)
-entry_location.grid(row=3, column=1)
-entry_posts=Entry(ramka_formularz)
-entry_posts.grid(row=4, column=1)
+Label(frame_left, text="Dom dla pracowników:").grid(row=9, column=0, columnspan=2)
+entry_domu_pracownik = Entry(frame_left)
+entry_domu_pracownik.grid(row=10, column=0, columnspan=2)
+Button(frame_left, text="Pokaż pracowników domu", command=pokaz_pracownikow_domu).grid(row=11, column=0, columnspan=2)
 
-button_dodaj_obiekt=Button(ramka_formularz, text='Dodaj obiekt', command=add_user)
-button_dodaj_obiekt.grid(row=5, column=0, columnspan=2)
+Label(frame_left, text="Domy dziecka").grid(row=12, column=0)
+listbox_domy = Listbox(frame_left, height=5)
+listbox_domy.grid(row=13, column=0, columnspan=2)
+Button(frame_left, text="Usuń dom", command=usun_dom).grid(row=14, column=0, columnspan=2)
+listbox_domy.bind("<<ListboxSelect>>", lambda e: on_select_listbox("dom"))
 
-# ramka_szczegoly_obiektow
-label_szczegoly_obiektow=Label(ramka_szczegoly_obiektow, text="Szczegoly obiektu:")
-label_szczegoly_obiektow.grid(row=0, column=0)
-label_szczegoly_name=Label(ramka_szczegoly_obiektow, text="Imię:")
-label_szczegoly_name.grid(row=1, column=0)
-label_szczegoly_name_wartosc=Label(ramka_szczegoly_obiektow, text="....")
-label_szczegoly_name_wartosc.grid(row=1, column=1)
-label_szczegoly_surname=Label(ramka_szczegoly_obiektow, text="Nazwisko:")
-label_szczegoly_surname.grid(row=1, column=2)
-label_szczegoly_surname_wartosc=Label(ramka_szczegoly_obiektow, text="....")
-label_szczegoly_surname_wartosc.grid(row=1, column=3)
-label_szczegoly_location=Label(ramka_szczegoly_obiektow, text="Miejscowość:")
-label_szczegoly_location.grid(row=1, column=4)
-label_szczegoly_location_wartosc=Label(ramka_szczegoly_obiektow, text="....")
-label_szczegoly_location_wartosc.grid(row=1, column=5)
-label_szczegoly_posts=Label(ramka_szczegoly_obiektow, text="Posty:")
-label_szczegoly_posts.grid(row=1, column=6)
-label_szczegoly_posts_wartosc=Label(ramka_szczegoly_obiektow, text="....")
-label_szczegoly_posts_wartosc.grid(row=1, column=7)
+Label(frame_left, text="Pracownicy").grid(row=15, column=0)
+listbox_pracownicy = Listbox(frame_left, height=5)
+listbox_pracownicy.grid(row=16, column=0, columnspan=2)
+Button(frame_left, text="Usuń pracownika", command=usun_pracownika).grid(row=17, column=0, columnspan=2)
+listbox_pracownicy.bind("<<ListboxSelect>>", lambda e: on_select_listbox("pracownik"))
 
-# ramka_mapa
-map_widget = tkintermapview.TkinterMapView(ramka_mapa, width=1200, height=500, corner_radius=5)
-map_widget.grid(row=0, column=0, columnspan=2)
-map_widget.set_position(52.23,21.0)
+Label(frame_left, text="Dzieci").grid(row=18, column=0)
+listbox_dzieci = Listbox(frame_left, height=5)
+listbox_dzieci.grid(row=19, column=0, columnspan=2)
+Button(frame_left, text="Usuń dziecko", command=usun_dziecko).grid(row=20, column=0, columnspan=2)
+listbox_dzieci.bind("<<ListboxSelect>>", lambda e: on_select_listbox("dziecko"))
+
+map_widget = tkintermapview.TkinterMapView(root, width=800, height=800, corner_radius=0)
+map_widget.grid(row=0, column=1)
+map_widget.set_position(52.23, 21.0)
 map_widget.set_zoom(6)
-
-
 
 root.mainloop()
