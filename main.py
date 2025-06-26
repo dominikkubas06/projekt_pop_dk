@@ -3,6 +3,7 @@ import tkintermapview
 import requests
 from bs4 import BeautifulSoup
 
+
 class ObiektMapy:
     def __init__(self, nazwa, miejscowosc):
         self.nazwa = nazwa
